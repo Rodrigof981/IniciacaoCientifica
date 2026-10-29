@@ -176,21 +176,34 @@ export default function HomePage() {
         </div>
 
         {/* Jogo */}
-        <div className="bg-yellow-950 rounded-2xl shadow-xl px-6 py-5 flex flex-col sm:flex-row items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shrink-0">
-            <Gamepad2 size={18} className="text-yellow-950" strokeWidth={2} />
+        <div className="rounded-2xl shadow-xl overflow-hidden border-2 border-amber-400">
+          <div className="bg-yellow-950 px-6 py-5 flex flex-col sm:flex-row items-center gap-5">
+            <div className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-amber-400 shrink-0 gap-0.5">
+              <span className="text-3xl leading-none" aria-hidden="true">🐝</span>
+              <span className="text-yellow-950 text-xs font-black tracking-widest">GAME</span>
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                <span className="text-xs font-black tracking-widest text-amber-400 uppercase">Novo · Mini-jogo</span>
+              </div>
+              <h2 className="text-lg font-black text-yellow-300 leading-tight">Mandaçaia Run 🍯</h2>
+              <p className="text-sm text-yellow-400 mt-1">
+                Ajude a mandaçaia a desviar dos favos! Clique, toque ou pressione Espaço para fazer ela subir. Bata o seu recorde!
+              </p>
+            </div>
+            <a href="/jogo"
+              className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 active:scale-95 text-yellow-950 font-black text-base px-6 py-3 rounded-xl shadow-lg transition-all shrink-0">
+              <Gamepad2 size={18} /> Jogar agora
+            </a>
           </div>
-          <div className="flex-1">
-            <h2 className="font-bold text-yellow-300 mb-0.5">Mandaçaia Run 🐝</h2>
-            <p className="text-sm text-yellow-400">
-              Ajude a mandaçaia a desviar dos favos de mel! Pressione espaço ou toque para fazer a
-              abelha subir e bata o recorde.
-            </p>
+          <div className="bg-amber-400 px-6 py-1.5 flex items-center gap-4">
+            <span className="text-yellow-950 text-xs font-bold">⎵ Espaço</span>
+            <span className="text-yellow-950 text-xs">·</span>
+            <span className="text-yellow-950 text-xs font-bold">↑ Seta</span>
+            <span className="text-yellow-950 text-xs">·</span>
+            <span className="text-yellow-950 text-xs font-bold">👆 Toque</span>
+            <span className="text-yellow-800 text-xs ml-auto">Desvie dos favos de mel!</span>
           </div>
-          <a href="/jogo"
-            className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-yellow-950 font-semibold text-sm px-4 py-2 rounded-lg transition-colors shrink-0">
-            <Gamepad2 size={14} /> Jogar
-          </a>
         </div>
 
         <p className="text-center text-xs text-yellow-800 opacity-60 pb-4">

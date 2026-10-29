@@ -5,105 +5,251 @@ import { House, RotateCcw } from "lucide-react";
 
 // ── Constantes do jogo ────────────────────────────────────────────────────────
 
-const CANVAS_W = 800;
-const CANVAS_H = 300;
-const GROUND_Y = CANVAS_H - 48;
+const CANVAS_W = 900;
+const CANVAS_H = 420;
+const GROUND_Y = CANVAS_H - 56;
 
-const BEE_X = 90;
-const BEE_W = 36;
-const BEE_H = 22;
+const BEE_X = 100;
+const BEE_W = 42;
+const BEE_H = 26;
 
-const GRAVITY = 0.55;
-const JUMP_V = -9.5;
+// Física com controle justo:
+// - JUMP_V: impulso inicial ao apertar (menor = salto mais curto e preciso)
+// - GRAVITY_NORMAL: gravidade padrão enquanto sobe
+// - GRAVITY_FALL: gravidade maior na descida (responsividade ao soltar)
+// - MAX_FALL: velocidade máxima de queda (evita queda brusca demais)
+const JUMP_V        = -5.5;  // impulso inicial suave
+const GRAVITY_NORMAL = 0.28; // subida suave
+const GRAVITY_FALL   = 0.50; // descida mais rápida → controle responsivo
+const MAX_FALL       = 7.0;  // limite de velocidade de queda
 
-const OBS_W = 28;
-const OBS_GAP_MIN = 220;
-const OBS_GAP_MAX = 380;
-const OBS_SPEED_INIT = 4.5;
-const OBS_SPEED_MAX = 11;
-const SPEED_INC = 0.0008; // incremento por frame
+const OBS_W          = 34;
+const OBS_GAP_MIN    = 160;  // abertura mínima maior → mais fácil
+const OBS_GAP_MAX    = 240;
+const OBS_SPACING_MIN = 310; // espaçamento mínimo entre obstáculos
+const OBS_SPACING_MAX = 460;
+const OBS_SPEED_INIT = 3.2;  // velocidade inicial mais baixa
+const OBS_SPEED_MAX  = 9.0;
+const SPEED_INC      = 0.0005; // aceleração mais suave
 
 type Phase = "idle" | "playing" | "dead";
 
 interface Obs {
   x: number;
-  topH: number;   // altura do obstáculo superior
-  botY: number;   // y inicial do obstáculo inferior
+  topH: number;
+  botY: number;
   passed: boolean;
 }
 
 // ── Helpers de desenho ────────────────────────────────────────────────────────
 
-function drawBee(ctx: CanvasRenderingContext2D, x: number, y: number, flap: number) {
+// Nuvens decorativas em parallax (fundo)
+function drawClouds(ctx: CanvasRenderingContext2D, frame: number) {
+  const clouds = [
+    { x: 80,  y: 40,  r: 22, speed: 0.18 },
+    { x: 260, y: 28,  r: 18, speed: 0.12 },
+    { x: 460, y: 50,  r: 26, speed: 0.22 },
+    { x: 650, y: 32,  r: 20, speed: 0.15 },
+    { x: 820, y: 44,  r: 24, speed: 0.20 },
+  ];
+  ctx.save();
+  clouds.forEach(({ x, y, r, speed }) => {
+    const cx = ((x - frame * speed) % (CANVAS_W + 80) + CANVAS_W + 80) % (CANVAS_W + 80) - 40;
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.beginPath();
+    ctx.arc(cx,     y,     r,       0, Math.PI * 2);
+    ctx.arc(cx + r, y - 6, r * 0.7, 0, Math.PI * 2);
+    ctx.arc(cx - r * 0.6, y + 2, r * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+// Sol
+function drawSun(ctx: CanvasRenderingContext2D, frame: number) {
+  ctx.save();
+  const pulse = 1 + Math.sin(frame * 0.03) * 0.03;
+  ctx.translate(52, 52);
+  ctx.scale(pulse, pulse);
+  // raios
+  ctx.strokeStyle = "#fde047";
+  ctx.lineWidth   = 2.5;
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI / 4) * i + frame * 0.005;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(angle) * 20, Math.sin(angle) * 20);
+    ctx.lineTo(Math.cos(angle) * 28, Math.sin(angle) * 28);
+    ctx.stroke();
+  }
+  // disco
+  ctx.beginPath();
+  ctx.arc(0, 0, 16, 0, Math.PI * 2);
+  ctx.fillStyle = "#fbbf24";
+  ctx.fill();
+  ctx.strokeStyle = "#f59e0b";
+  ctx.lineWidth   = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Árvores no fundo (parallax médio)
+function drawTrees(ctx: CanvasRenderingContext2D, frame: number) {
+  const trees = [
+    { x: 120, h: 55, w: 36 },
+    { x: 310, h: 44, w: 30 },
+    { x: 500, h: 60, w: 40 },
+    { x: 700, h: 48, w: 32 },
+    { x: 870, h: 52, w: 36 },
+  ];
+  ctx.save();
+  trees.forEach(({ x, h, w }) => {
+    const tx = ((x - frame * 0.6) % (CANVAS_W + 80) + CANVAS_W + 80) % (CANVAS_W + 80) - 40;
+    const baseY = GROUND_Y;
+    // tronco
+    ctx.fillStyle = "#92400e";
+    ctx.fillRect(tx - 4, baseY - h * 0.4, 8, h * 0.4);
+    // copa
+    ctx.beginPath();
+    ctx.ellipse(tx, baseY - h * 0.45, w / 2, h * 0.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#65a30d";
+    ctx.fill();
+    // florzinha no topo
+    ctx.font = "12px serif";
+    ctx.fillText("🌺", tx - 6, baseY - h * 0.95);
+  });
+  ctx.restore();
+}
+
+// Flores no chão com variedade
+function drawGround(ctx: CanvasRenderingContext2D, frame: number) {
+  // grama
+  ctx.fillStyle = "#4ade80";
+  ctx.fillRect(0, GROUND_Y - 4, CANVAS_W, 4);
+  // trilho
+  ctx.fillStyle = "#78350f";
+  ctx.fillRect(0, GROUND_Y, CANVAS_W, CANVAS_H - GROUND_Y);
+  // detalhe de grama com pontas
+  ctx.fillStyle = "#22c55e";
+  for (let gx = 0; gx < CANVAS_W; gx += 14) {
+    const offset = ((gx - frame * 3.2) % CANVAS_W + CANVAS_W) % CANVAS_W;
+    ctx.fillRect(offset, GROUND_Y - 8, 3, 8);
+  }
+
+  const flowerEmojis = ["🌸", "🌼", "🌻", "🌺", "🌷", "🍀", "🌸", "🌼"];
+  const positions    = [40, 140, 250, 380, 490, 600, 720, 840];
+  positions.forEach((px, i) => {
+    const fx = ((px - frame * 3.2) % CANVAS_W + CANVAS_W) % CANVAS_W;
+    ctx.font = "18px serif";
+    ctx.fillText(flowerEmojis[i % flowerEmojis.length], fx, GROUND_Y + 24);
+  });
+}
+
+// Gotinha de mel caindo do favo
+function drawHoneyDrip(ctx: CanvasRenderingContext2D, x: number, topH: number, frame: number) {
+  const dripY = topH + Math.sin(frame * 0.06) * 6 + 4;
+  ctx.save();
+  ctx.fillStyle = "#fbbf24";
+  ctx.beginPath();
+  ctx.arc(x + OBS_W / 2, dripY, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + OBS_W / 2 - 3, topH);
+  ctx.lineTo(x + OBS_W / 2 + 3, topH);
+  ctx.lineTo(x + OBS_W / 2, dripY - 1);
+  ctx.fillStyle = "#f59e0b";
+  ctx.fill();
+  ctx.restore();
+}
+
+// Rastro de pólen atrás da abelha
+function drawPollenTrail(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
+  ctx.save();
+  for (let i = 1; i <= 5; i++) {
+    const tx     = x - i * 10;
+    const ty     = y + BEE_H / 2 + Math.sin(frame * 0.2 + i) * 3;
+    const alpha  = (1 - i / 6) * 0.5;
+    const radius = 3 - i * 0.4;
+    ctx.beginPath();
+    ctx.arc(tx, ty, Math.max(radius, 0.5), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251,191,36,${alpha})`;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawBee(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
   const cx = x + BEE_W / 2;
   const cy = y + BEE_H / 2;
 
-  // Corpo
   ctx.save();
+
+  // Corpo
   ctx.beginPath();
   ctx.ellipse(cx, cy, BEE_W / 2, BEE_H / 2, 0, 0, Math.PI * 2);
   ctx.fillStyle = "#fbbf24";
   ctx.fill();
 
   // Listras
-  const stripes = [0.25, 0.5, 0.75];
-  stripes.forEach((t) => {
-    const sx = x + BEE_W * t;
+  [0.25, 0.5, 0.75].forEach((t) => {
     ctx.beginPath();
-    ctx.ellipse(sx, cy, BEE_W * 0.08, BEE_H / 2 - 1, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + BEE_W * t, cy, BEE_W * 0.08, BEE_H / 2 - 2, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#1c1917";
     ctx.fill();
   });
 
-  // Asas — batem em função do frame
-  const wingY = cy - BEE_H / 2 - 2;
-  const wingFlap = Math.sin(flap * 0.6) * 5;
-  ctx.globalAlpha = 0.75;
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.strokeStyle = "rgba(0,0,0,0.3)";
-  ctx.lineWidth = 1;
+  // Asas
+  const wingY    = cy - BEE_H / 2 - 3;
+  const wingFlap = Math.sin(frame * 0.55) * 6;
+  ctx.globalAlpha    = 0.78;
+  ctx.fillStyle      = "rgba(255,255,255,0.92)";
+  ctx.strokeStyle    = "rgba(0,0,0,0.25)";
+  ctx.lineWidth      = 1;
 
-  // asa esquerda
   ctx.beginPath();
-  ctx.ellipse(cx - 6, wingY + wingFlap, 10, 7, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  ctx.ellipse(cx - 7, wingY + wingFlap, 12, 8, -0.35, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
 
-  // asa direita
   ctx.beginPath();
-  ctx.ellipse(cx + 6, wingY - wingFlap, 10, 7, 0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  ctx.ellipse(cx + 7, wingY - wingFlap, 12, 8, 0.35, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
 
   ctx.globalAlpha = 1;
 
   // Olho
   ctx.beginPath();
-  ctx.arc(x + BEE_W * 0.12, cy - 3, 2.5, 0, Math.PI * 2);
+  ctx.arc(x + BEE_W * 0.1, cy - 4, 3, 0, Math.PI * 2);
   ctx.fillStyle = "#1c1917";
   ctx.fill();
+
+  // Ferrão
+  ctx.beginPath();
+  ctx.moveTo(x + BEE_W - 2, cy);
+  ctx.lineTo(x + BEE_W + 7, cy + 2);
+  ctx.strokeStyle = "#92400e";
+  ctx.lineWidth   = 2;
+  ctx.stroke();
 
   ctx.restore();
 }
 
 function drawHoneycomb(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  // fundo
-  ctx.fillStyle = "#d97706";
+  if (h <= 0) return;
+  ctx.save();
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, 4);
+  ctx.roundRect(x, y, w, h, 5);
+  ctx.fillStyle = "#d97706";
   ctx.fill();
 
-  // padrão favo
   ctx.strokeStyle = "#92400e";
-  ctx.lineWidth = 1.2;
-  const size = 10;
+  ctx.lineWidth   = 1.3;
+  const size = 11;
   const rows = Math.ceil(h / (size * 1.5)) + 1;
-  const cols = Math.ceil(w / (size * Math.sqrt(3))) + 1;
+  const cols = Math.ceil(w / (size * Math.sqrt(3))) + 2;
+  ctx.beginPath();
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const hx = x + c * size * Math.sqrt(3) + (r % 2) * size * (Math.sqrt(3) / 2);
       const hy = y + r * size * 1.5;
-      ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI / 3) * i - Math.PI / 6;
         const px = hx + size * 0.55 * Math.cos(angle);
@@ -111,113 +257,139 @@ function drawHoneycomb(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
         if (i === 0) { ctx.moveTo(px, py); } else { ctx.lineTo(px, py); }
       }
       ctx.closePath();
-      ctx.stroke();
     }
   }
+  ctx.stroke();
+  ctx.restore();
 }
 
-function drawGround(ctx: CanvasRenderingContext2D) {
+function drawGround(ctx: CanvasRenderingContext2D, frame: number) {
+  // trilho
   ctx.fillStyle = "#92400e";
-  ctx.fillRect(0, GROUND_Y, CANVAS_W, 4);
+  ctx.fillRect(0, GROUND_Y, CANVAS_W, 5);
+  // chão
+  ctx.fillStyle = "#78350f";
+  ctx.fillRect(0, GROUND_Y + 5, CANVAS_W, CANVAS_H - GROUND_Y - 5);
 
-  // flores decorativas
-  const positions = [50, 150, 280, 420, 560, 680, 760];
-  positions.forEach((px) => {
-    ctx.font = "18px serif";
-    ctx.fillText("🌸", px, GROUND_Y + 22);
+  // flores que se movem com o jogo (parallax leve)
+  const flowerPositions = [60, 180, 330, 480, 620, 760, 880];
+  flowerPositions.forEach((px) => {
+    const fx = ((px - frame * 1.2) % CANVAS_W + CANVAS_W) % CANVAS_W;
+    ctx.font = "20px serif";
+    ctx.fillText("🌸", fx, GROUND_Y + 28);
   });
 }
 
 function drawScore(ctx: CanvasRenderingContext2D, score: number, best: number) {
+  ctx.save();
   ctx.fillStyle = "#451a03";
-  ctx.font = "bold 15px monospace";
+  ctx.font      = "bold 16px monospace";
   ctx.textAlign = "right";
-  ctx.fillText(`RECORDE ${String(best).padStart(5, "0")}`, CANVAS_W - 12, 24);
-  ctx.fillText(String(score).padStart(5, "0"), CANVAS_W - 12, 44);
+  ctx.fillText(`RECORDE ${String(best).padStart(5, "0")}`, CANVAS_W - 14, 26);
+  ctx.fillText(String(score).padStart(5, "0"), CANVAS_W - 14, 48);
   ctx.textAlign = "left";
+  ctx.restore();
+}
+
+function drawOverlay(ctx: CanvasRenderingContext2D, title: string, lines: string[]) {
+  ctx.save();
+  ctx.fillStyle = "rgba(69,26,3,0.62)";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#fef08a";
+  ctx.font      = "bold 30px monospace";
+  ctx.fillText(title, CANVAS_W / 2, CANVAS_H / 2 - 22);
+
+  ctx.font      = "17px monospace";
+  ctx.fillStyle = "#fde68a";
+  lines.forEach((line, i) => {
+    ctx.fillText(line, CANVAS_W / 2, CANVAS_H / 2 + 14 + i * 26);
+  });
+  ctx.restore();
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function JogoPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({
+  const stateRef  = useRef({
     phase: "idle" as Phase,
-    beeY: GROUND_Y - BEE_H,
+    beeY:  GROUND_Y / 2 - BEE_H,
     beeVY: 0,
+    holding: false,   // espaço/toque mantido pressionado
     obstacles: [] as Obs[],
     score: 0,
-    best: 0,
+    best:  0,
     speed: OBS_SPEED_INIT,
-    nextObsX: CANVAS_W + 60,
     frame: 0,
   });
   const rafRef = useRef<number>(0);
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(0);
+  const [best,  setBest ] = useState(0);
 
-  // Verifica colisão entre abelha e obstáculo
   function checkCollision(obs: Obs, beeY: number): boolean {
-    const bx1 = BEE_X + 4, bx2 = BEE_X + BEE_W - 4;
-    const by1 = beeY + 3,  by2 = beeY + BEE_H - 3;
-    const ox1 = obs.x,     ox2 = obs.x + OBS_W;
-
+    const bx1 = BEE_X + 6,      bx2 = BEE_X + BEE_W - 6;
+    const by1 = beeY  + 4,      by2 = beeY  + BEE_H - 4;
+    const ox1 = obs.x,           ox2 = obs.x + OBS_W;
     if (bx2 < ox1 || bx1 > ox2) return false;
-
-    // bate no bloco superior
-    if (by1 < obs.topH) return true;
-    // bate no bloco inferior
-    if (by2 > obs.botY) return true;
-
+    if (by1 < obs.topH)          return true;
+    if (by2 > obs.botY)          return true;
     return false;
   }
 
   function spawnObs(fromX: number): Obs {
-    const gap = 90 + Math.random() * 60; // abertura entre os blocos
-    const topH = 40 + Math.random() * (GROUND_Y - gap - 80);
-    return {
-      x: fromX,
-      topH,
-      botY: topH + gap,
-      passed: false,
-    };
+    const gap  = OBS_GAP_MIN + Math.random() * (OBS_GAP_MAX - OBS_GAP_MIN);
+    const topH = 50 + Math.random() * (GROUND_Y - gap - 100);
+    return { x: fromX, topH, botY: topH + gap, passed: false };
   }
 
   function resetGame() {
-    const s = stateRef.current;
-    s.phase = "playing";
-    s.beeY = GROUND_Y / 2 - BEE_H;
-    s.beeVY = 0;
-    s.obstacles = [spawnObs(CANVAS_W + 60)];
-    s.score = 0;
-    s.speed = OBS_SPEED_INIT;
-    s.nextObsX = CANVAS_W + 60;
-    s.frame = 0;
+    const s   = stateRef.current;
+    s.phase   = "playing";
+    s.beeY    = GROUND_Y / 2 - BEE_H;
+    s.beeVY   = 0;
+    s.holding = false;
+    s.obstacles = [spawnObs(CANVAS_W + 80)];
+    s.score   = 0;
+    s.speed   = OBS_SPEED_INIT;
+    s.frame   = 0;
     setPhase("playing");
     setScore(0);
   }
 
   const handleAction = useCallback(() => {
     const s = stateRef.current;
-    if (s.phase === "idle") {
-      resetGame();
-    } else if (s.phase === "playing") {
-      s.beeVY = JUMP_V;
-    } else if (s.phase === "dead") {
-      resetGame();
-    }
+    if      (s.phase === "idle")    { resetGame(); }
+    else if (s.phase === "playing") { s.beeVY = JUMP_V; }
+    else if (s.phase === "dead")    { resetGame(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rastreia se o botão está pressionado para gravidade variável
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onDown = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
-        handleAction();
+        const s = stateRef.current;
+        if (!s.holding) {
+          s.holding = true;
+          handleAction();
+        }
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "ArrowUp") {
+        stateRef.current.holding = false;
+      }
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup",   onUp);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup",   onUp);
+    };
   }, [handleAction]);
 
   useEffect(() => {
@@ -227,29 +399,34 @@ export default function JogoPage() {
     if (!ctx) return;
 
     function loop() {
-      if (!ctx || !canvas) return;
+      if (!ctx) return;
       const s = stateRef.current;
       s.frame++;
 
-      // ── fundo ──
-      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-      // gradiente céu
+      // fundo — gradiente céu mais rico
       const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-      grad.addColorStop(0, "#fef9c3");
+      grad.addColorStop(0, "#bfdbfe"); // azul claro no topo
+      grad.addColorStop(0.5, "#fef9c3");
       grad.addColorStop(1, "#fde68a");
       ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CANVAS_W, GROUND_Y);
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-      drawGround(ctx);
+      const f = s.phase === "playing" ? s.frame : 0;
+
+      drawSun(ctx, s.frame);
+      drawClouds(ctx, f);
+      drawTrees(ctx, f);
+      drawGround(ctx, f);
 
       if (s.phase === "playing") {
-        // física
-        s.beeVY += GRAVITY;
-        s.beeY += s.beeVY;
+        // física com gravidade variável
+        const grav = s.beeVY < 0 ? GRAVITY_NORMAL : GRAVITY_FALL;
+        s.beeVY = Math.min(s.beeVY + grav, MAX_FALL);
+        s.beeY  += s.beeVY;
 
-        // chão e teto
+        // limites
         if (s.beeY + BEE_H >= GROUND_Y) {
-          s.beeY = GROUND_Y - BEE_H;
+          s.beeY  = GROUND_Y - BEE_H;
           s.phase = "dead";
           setPhase("dead");
           if (s.score > s.best) { s.best = s.score; setBest(s.score); }
@@ -262,14 +439,15 @@ export default function JogoPage() {
         // mover obstáculos
         s.obstacles.forEach((o) => { o.x -= s.speed; });
 
-        // spawn novo obstáculo
+        // spawn novo obstáculo quando o último cruzou o limiar
         const last = s.obstacles[s.obstacles.length - 1];
-        if (last && last.x < CANVAS_W - (OBS_GAP_MIN + Math.random() * (OBS_GAP_MAX - OBS_GAP_MIN))) {
-          s.obstacles.push(spawnObs(CANVAS_W + 20));
+        const spacing = OBS_SPACING_MIN + Math.random() * (OBS_SPACING_MAX - OBS_SPACING_MIN);
+        if (last && last.x < CANVAS_W - spacing) {
+          s.obstacles.push(spawnObs(CANVAS_W + 30));
         }
 
-        // remover obstáculos fora da tela
-        s.obstacles = s.obstacles.filter((o) => o.x + OBS_W > -10);
+        // limpar fora da tela
+        s.obstacles = s.obstacles.filter((o) => o.x + OBS_W > -20);
 
         // score e colisão
         s.obstacles.forEach((o) => {
@@ -286,46 +464,31 @@ export default function JogoPage() {
         });
       }
 
-      // ── desenhar obstáculos ──
+      // obstáculos com gotinha de mel
       s.obstacles.forEach((o) => {
-        // bloco superior
         drawHoneycomb(ctx, o.x, 0, OBS_W, o.topH);
-        // bloco inferior
+        drawHoneyDrip(ctx, o.x, o.topH, s.frame);
         drawHoneycomb(ctx, o.x, o.botY, OBS_W, GROUND_Y - o.botY);
       });
 
-      // ── abelha ──
+      // rastro de pólen + abelha
+      drawPollenTrail(ctx, BEE_X, s.beeY, s.frame);
       drawBee(ctx, BEE_X, s.beeY, s.frame);
 
-      // ── score ──
+      // score
       drawScore(ctx, s.score, s.best);
 
-      // ── telas de idle / game over ──
+      // overlays
       if (s.phase === "idle") {
-        ctx.fillStyle = "rgba(69,26,3,0.55)";
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = "#fef08a";
-        ctx.font = "bold 28px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("🐝 Mandaçaia Run", CANVAS_W / 2, CANVAS_H / 2 - 20);
-        ctx.font = "16px monospace";
-        ctx.fillStyle = "#fde68a";
-        ctx.fillText("Pressione Espaço ou toque para começar", CANVAS_W / 2, CANVAS_H / 2 + 16);
-        ctx.textAlign = "left";
+        drawOverlay(ctx, "🐝 Mandaçaia Run", [
+          "Pressione Espaço, ↑ ou toque para começar",
+        ]);
       }
-
       if (s.phase === "dead") {
-        ctx.fillStyle = "rgba(69,26,3,0.55)";
-        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        ctx.fillStyle = "#fef08a";
-        ctx.font = "bold 26px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("💥 Colisão!", CANVAS_W / 2, CANVAS_H / 2 - 24);
-        ctx.font = "16px monospace";
-        ctx.fillStyle = "#fde68a";
-        ctx.fillText(`Pontuação: ${s.score}  |  Recorde: ${s.best}`, CANVAS_W / 2, CANVAS_H / 2 + 8);
-        ctx.fillText("Pressione Espaço ou toque para recomeçar", CANVAS_W / 2, CANVAS_H / 2 + 34);
-        ctx.textAlign = "left";
+        drawOverlay(ctx, "💥 Colisão!", [
+          `Pontuação: ${s.score}   Recorde: ${s.best}`,
+          "Espaço, ↑ ou toque para recomeçar",
+        ]);
       }
 
       rafRef.current = requestAnimationFrame(loop);
@@ -338,45 +501,44 @@ export default function JogoPage() {
   return (
     <main className="min-h-screen px-4 py-8 flex flex-col items-center" aria-label="Jogo Mandaçaia Run">
 
-      {/* Navegação de volta */}
-      <div className="w-full max-w-4xl mb-6 flex items-center gap-3">
+      {/* Cabeçalho */}
+      <div className="w-full max-w-5xl mb-4 flex items-center gap-3">
         <a href="/"
           className="flex items-center gap-2 bg-yellow-950 hover:bg-yellow-900 text-yellow-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
           <House size={15} /> Início
         </a>
-        <h1 className="text-lg font-bold text-yellow-950">🐝 Mandaçaia Run</h1>
+        <h1 className="text-xl font-bold text-yellow-950">🐝 Mandaçaia Run</h1>
       </div>
 
-      {/* Canvas do jogo */}
+      {/* Canvas */}
       <div
-        className="w-full max-w-4xl bg-yellow-950 rounded-2xl shadow-xl overflow-hidden cursor-pointer select-none"
-        onClick={handleAction}
+        className="w-full max-w-5xl bg-yellow-950 rounded-2xl shadow-xl overflow-hidden cursor-pointer select-none"
+        onPointerDown={() => { stateRef.current.holding = true; handleAction(); }}
+        onPointerUp={()   => { stateRef.current.holding = false; }}
+        onPointerLeave={() => { stateRef.current.holding = false; }}
         role="button"
         aria-label="Área do jogo — clique ou pressione espaço para jogar"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); handleAction(); } }}
+        onKeyDown={(e) => {
+          if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); handleAction(); }
+        }}
       >
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="w-full h-auto"
-        />
+        <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} className="w-full h-auto" />
       </div>
 
-      {/* Instruções e score */}
-      <div className="w-full max-w-4xl mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+      {/* Placar + controles */}
+      <div className="w-full max-w-5xl mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl shadow-xl p-4 flex flex-col gap-1">
           <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Pontuação</p>
-          <p className="text-2xl font-bold text-yellow-950">{String(score).padStart(5, "0")}</p>
+          <p className="text-3xl font-bold text-yellow-950">{String(score).padStart(5, "0")}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-xl p-4 flex flex-col gap-1">
           <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Recorde</p>
-          <p className="text-2xl font-bold text-amber-600">{String(best).padStart(5, "0")}</p>
+          <p className="text-3xl font-bold text-amber-600">{String(best).padStart(5, "0")}</p>
         </div>
         <div className="bg-yellow-950 rounded-2xl shadow-xl p-4 flex flex-col gap-1 col-span-2 sm:col-span-1">
           <p className="text-xs text-yellow-500 uppercase font-semibold tracking-wide">Controles</p>
-          <p className="text-sm text-yellow-300">⎵ Espaço · ↑ Seta · Toque</p>
+          <p className="text-sm text-yellow-300">⎵ Espaço · ↑ Seta · Toque na tela</p>
           <p className="text-xs text-yellow-500 mt-1">Desvie dos favos de mel!</p>
         </div>
       </div>
@@ -384,9 +546,9 @@ export default function JogoPage() {
       {phase === "dead" && (
         <button
           onClick={handleAction}
-          className="mt-4 flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-yellow-950 font-bold px-6 py-3 rounded-xl shadow-lg transition-colors"
+          className="mt-5 flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-yellow-950 font-bold text-lg px-8 py-3 rounded-xl shadow-lg transition-colors"
         >
-          <RotateCcw size={16} /> Jogar de novo
+          <RotateCcw size={18} /> Jogar de novo
         </button>
       )}
 
