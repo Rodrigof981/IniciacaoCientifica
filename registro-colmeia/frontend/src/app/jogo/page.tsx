@@ -23,14 +23,14 @@ const GRAVITY_NORMAL = 0.28; // subida suave
 const GRAVITY_FALL   = 0.50; // descida mais rápida → controle responsivo
 const MAX_FALL       = 7.0;  // limite de velocidade de queda
 
-const OBS_W          = 34;
-const OBS_GAP_MIN    = 160;  // abertura mínima maior → mais fácil
-const OBS_GAP_MAX    = 240;
-const OBS_SPACING_MIN = 310; // espaçamento mínimo entre obstáculos
-const OBS_SPACING_MAX = 460;
-const OBS_SPEED_INIT = 3.2;  // velocidade inicial mais baixa
-const OBS_SPEED_MAX  = 9.0;
-const SPEED_INC      = 0.0005; // aceleração mais suave
+const OBS_W           = 34;
+const OBS_GAP_MIN     = 110;  // abertura menor → mais difícil
+const OBS_GAP_MAX     = 160;
+const OBS_SPACING_MIN = 240;  // obstáculos mais próximos
+const OBS_SPACING_MAX = 340;
+const OBS_SPEED_INIT  = 5.0;  // velocidade inicial maior
+const OBS_SPEED_MAX   = 13.0;
+const SPEED_INC       = 0.0012; // acelera mais rápido
 
 type Phase = "idle" | "playing" | "dead";
 
@@ -177,58 +177,12 @@ function drawPollenTrail(ctx: CanvasRenderingContext2D, x: number, y: number, fr
   ctx.restore();
 }
 
+// Abelha como emoji — simples e reconhecível
 function drawBee(ctx: CanvasRenderingContext2D, x: number, y: number, frame: number) {
-  const cx = x + BEE_W / 2;
-  const cy = y + BEE_H / 2;
-
+  const bob = Math.sin(frame * 0.18) * 1.5; // leve balanço vertical
   ctx.save();
-
-  // Corpo
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, BEE_W / 2, BEE_H / 2, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "#fbbf24";
-  ctx.fill();
-
-  // Listras
-  [0.25, 0.5, 0.75].forEach((t) => {
-    ctx.beginPath();
-    ctx.ellipse(x + BEE_W * t, cy, BEE_W * 0.08, BEE_H / 2 - 2, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#1c1917";
-    ctx.fill();
-  });
-
-  // Asas
-  const wingY    = cy - BEE_H / 2 - 3;
-  const wingFlap = Math.sin(frame * 0.55) * 6;
-  ctx.globalAlpha    = 0.78;
-  ctx.fillStyle      = "rgba(255,255,255,0.92)";
-  ctx.strokeStyle    = "rgba(0,0,0,0.25)";
-  ctx.lineWidth      = 1;
-
-  ctx.beginPath();
-  ctx.ellipse(cx - 7, wingY + wingFlap, 12, 8, -0.35, 0, Math.PI * 2);
-  ctx.fill(); ctx.stroke();
-
-  ctx.beginPath();
-  ctx.ellipse(cx + 7, wingY - wingFlap, 12, 8, 0.35, 0, Math.PI * 2);
-  ctx.fill(); ctx.stroke();
-
-  ctx.globalAlpha = 1;
-
-  // Olho
-  ctx.beginPath();
-  ctx.arc(x + BEE_W * 0.1, cy - 4, 3, 0, Math.PI * 2);
-  ctx.fillStyle = "#1c1917";
-  ctx.fill();
-
-  // Ferrão
-  ctx.beginPath();
-  ctx.moveTo(x + BEE_W - 2, cy);
-  ctx.lineTo(x + BEE_W + 7, cy + 2);
-  ctx.strokeStyle = "#92400e";
-  ctx.lineWidth   = 2;
-  ctx.stroke();
-
+  ctx.font = "28px serif";
+  ctx.fillText("🐝", x, y + BEE_H + bob);
   ctx.restore();
 }
 
@@ -261,23 +215,6 @@ function drawHoneycomb(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   }
   ctx.stroke();
   ctx.restore();
-}
-
-function drawGround(ctx: CanvasRenderingContext2D, frame: number) {
-  // trilho
-  ctx.fillStyle = "#92400e";
-  ctx.fillRect(0, GROUND_Y, CANVAS_W, 5);
-  // chão
-  ctx.fillStyle = "#78350f";
-  ctx.fillRect(0, GROUND_Y + 5, CANVAS_W, CANVAS_H - GROUND_Y - 5);
-
-  // flores que se movem com o jogo (parallax leve)
-  const flowerPositions = [60, 180, 330, 480, 620, 760, 880];
-  flowerPositions.forEach((px) => {
-    const fx = ((px - frame * 1.2) % CANVAS_W + CANVAS_W) % CANVAS_W;
-    ctx.font = "20px serif";
-    ctx.fillText("🌸", fx, GROUND_Y + 28);
-  });
 }
 
 function drawScore(ctx: CanvasRenderingContext2D, score: number, best: number) {
