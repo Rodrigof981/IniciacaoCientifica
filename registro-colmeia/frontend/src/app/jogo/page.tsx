@@ -489,9 +489,15 @@ export default function JogoPage() {
         </a>
       </div>
 
-      {/* Título */}
-      <div className="w-full max-w-5xl mb-4 sm:mt-16 flex items-center gap-3">
-        <h1 className="text-xl font-bold text-yellow-950">🐝 Mandaçaia Run</h1>
+      {/* Título em caixa */}
+      <div className="w-full max-w-5xl mb-4 sm:mt-16">
+        <div className="bg-yellow-950 rounded-2xl shadow-xl px-6 py-5 flex flex-col sm:flex-row items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-amber-400 flex items-center justify-center shrink-0 text-2xl" aria-hidden="true">🐝</div>
+          <div>
+            <h1 className="text-2xl font-black text-yellow-300">Mandaçaia Run</h1>
+            <p className="text-sm text-yellow-400 mt-0.5">Ajude a mandaçaia a desviar dos favos e bata seu recorde!</p>
+          </div>
+        </div>
       </div>
 
       {/* Canvas */}
@@ -520,10 +526,10 @@ export default function JogoPage() {
           <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide">Recorde</p>
           <p className="text-3xl font-bold text-amber-600">{String(best).padStart(5, "0")}</p>
         </div>
-        <div className="bg-yellow-950 rounded-2xl shadow-xl p-4 flex flex-col gap-1 col-span-2 sm:col-span-1">
+        <div className="bg-yellow-950 rounded-2xl shadow-xl p-4 flex flex-col gap-2 col-span-2 sm:col-span-1">
           <p className="text-xs text-yellow-500 uppercase font-semibold tracking-wide">Controles</p>
-          <p className="text-sm text-yellow-300">⎵ Espaço · ↑ Seta · Toque na tela</p>
-          <p className="text-xs text-yellow-500 mt-1">Desvie dos favos de mel!</p>
+          <p className="text-base text-yellow-300 font-semibold">⎵ Espaço · ↑ Seta · Toque na tela</p>
+          <p className="text-sm text-yellow-400">Pressione para fazer a abelha subir e desviar dos favos de mel!</p>
         </div>
       </div>
 
