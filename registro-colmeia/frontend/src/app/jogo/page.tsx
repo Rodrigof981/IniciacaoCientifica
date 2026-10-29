@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { House, RotateCcw } from "lucide-react";
+import { House, RotateCcw, BarChart2, Info, LogIn, Gamepad2 } from "lucide-react";
 
 // ── Constantes do jogo ────────────────────────────────────────────────────────
 
@@ -438,12 +438,59 @@ export default function JogoPage() {
   return (
     <main className="min-h-screen px-4 py-8 flex flex-col items-center" aria-label="Jogo Mandaçaia Run">
 
-      {/* Cabeçalho */}
-      <div className="w-full max-w-5xl mb-4 flex items-center gap-3">
-        <a href="/"
-          className="flex items-center gap-2 bg-yellow-950 hover:bg-yellow-900 text-yellow-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-          <House size={15} /> Início
+      {/* Nav pública — pill flutuante no desktop, barra no mobile */}
+      <div className="hidden sm:flex fixed top-6 right-16 z-50 items-center" role="navigation">
+        <div className="flex items-center bg-yellow-950 border-2 border-yellow-800 rounded-full px-2.5 py-2 gap-1.5 shadow-md">
+          <a href="/" aria-label="Início"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
+            <House size={17} strokeWidth={2} />
+          </a>
+          <a href="/abelhas" aria-label="Abelhas"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
+            <Info size={17} strokeWidth={2} />
+          </a>
+          <a href="/dados" aria-label="Dados"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
+            <BarChart2 size={17} strokeWidth={2} />
+          </a>
+          <a href="/jogo" aria-label="Jogo" aria-current="page"
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-amber-400 text-yellow-950 scale-110 shadow-inner transition-all duration-200">
+            <Gamepad2 size={17} strokeWidth={2} />
+          </a>
+          <a href="/login" aria-label="Entrar"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
+            <LogIn size={17} strokeWidth={2} />
+          </a>
+        </div>
+      </div>
+
+      <div className="sm:hidden w-full max-w-5xl bg-yellow-950 rounded-2xl shadow-xl px-4 py-3 flex items-center justify-between mb-4" role="navigation">
+        <div className="flex items-center gap-1">
+          <a href="/" aria-label="Início"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
+            <House size={17} strokeWidth={2} />
+          </a>
+          <a href="/abelhas" aria-label="Abelhas"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
+            <Info size={17} strokeWidth={2} />
+          </a>
+          <a href="/dados" aria-label="Dados"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
+            <BarChart2 size={17} strokeWidth={2} />
+          </a>
+          <a href="/jogo" aria-label="Jogo" aria-current="page"
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-amber-400 text-yellow-950 transition-all duration-200">
+            <Gamepad2 size={17} strokeWidth={2} />
+          </a>
+        </div>
+        <a href="/login" aria-label="Entrar"
+          className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
+          <LogIn size={17} strokeWidth={2} />
         </a>
+      </div>
+
+      {/* Título */}
+      <div className="w-full max-w-5xl mb-4 sm:mt-16 flex items-center gap-3">
         <h1 className="text-xl font-bold text-yellow-950">🐝 Mandaçaia Run</h1>
       </div>
 

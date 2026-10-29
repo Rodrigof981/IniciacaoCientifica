@@ -24,6 +24,10 @@ function PublicNav() {
             className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
             <BarChart2 size={17} strokeWidth={2} />
           </a>
+          <a href="/jogo" aria-label="Jogo"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
+            <Gamepad2 size={17} strokeWidth={2} />
+          </a>
           <a href="/login" aria-label="Entrar"
             className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-500 hover:bg-yellow-800 hover:text-yellow-300 transition-all duration-200">
             <LogIn size={17} strokeWidth={2} />
@@ -45,6 +49,10 @@ function PublicNav() {
           <a href="/dados" aria-label="Dados"
             className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
             <BarChart2 size={17} strokeWidth={2} />
+          </a>
+          <a href="/jogo" aria-label="Jogo"
+            className="flex items-center justify-center w-9 h-9 rounded-full text-yellow-400 hover:bg-yellow-900 transition-all duration-200">
+            <Gamepad2 size={17} strokeWidth={2} />
           </a>
         </div>
         <a href="/login" aria-label="Entrar"
