@@ -2,7 +2,7 @@
 
 import React from "react";
 import BeeIcon from "@/app/components/BeeIcon";
-import { BarChart2, BookOpen, Mail, ExternalLink, House, LogIn, Hexagon, Info, ArrowRight } from "lucide-react";
+import { BarChart2, BookOpen, Mail, ExternalLink, House, LogIn, Hexagon, Info, ArrowRight, Gamepad2 } from "lucide-react";
 
 // ── Menu público ──────────────────────────────────────────────────────────────
 
@@ -173,6 +173,24 @@ export default function HomePage() {
               <p>Sorocaba - SP</p>
             </div>
           </div>
+        </div>
+
+        {/* Jogo */}
+        <div className="bg-yellow-950 rounded-2xl shadow-xl px-6 py-5 flex flex-col sm:flex-row items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center shrink-0">
+            <Gamepad2 size={18} className="text-yellow-950" strokeWidth={2} />
+          </div>
+          <div className="flex-1">
+            <h2 className="font-bold text-yellow-300 mb-0.5">Mandaçaia Run 🐝</h2>
+            <p className="text-sm text-yellow-400">
+              Ajude a mandaçaia a desviar dos favos de mel! Pressione espaço ou toque para fazer a
+              abelha subir e bata o recorde.
+            </p>
+          </div>
+          <a href="/jogo"
+            className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-yellow-950 font-semibold text-sm px-4 py-2 rounded-lg transition-colors shrink-0">
+            <Gamepad2 size={14} /> Jogar
+          </a>
         </div>
 
         <p className="text-center text-xs text-yellow-800 opacity-60 pb-4">
